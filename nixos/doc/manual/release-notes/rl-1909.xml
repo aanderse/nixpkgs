@@ -73,6 +73,15 @@
     </para>
    </listitem>
   </itemizedlist>
+  <itemizedlist>
+   <listitem>
+    <para>
+     The <varname>services.minidlna.config</varname> option has been converted
+     from lines to an attribute set. Please be sure to update your configuration
+     before upgrading.
+    </para>
+   </listitem>
+  </itemizedlist>
  </section>
 
  <section xmlns="http://docbook.org/ns/docbook"

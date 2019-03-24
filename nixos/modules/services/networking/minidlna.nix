@@ -6,6 +6,13 @@ with lib;
 let
   cfg = config.services.minidlna;
   port = 8200;
+
+  toKeyValue = attrs:
+    let mkLine = k: v: (if isList v then concatMapStringsSep "\n" (value: "${k}=${toString value}") v else "${k}=${toString v}") + "\n";
+    in concatStrings (mapAttrsToList mkLine attrs)
+  ;
+  configType = with types; either (either str (listOf str)) (either int bool);
+  configFile = pkgs.writeText "minidlna.conf" ((toKeyValue cfg.config) + (concatMapStringsSep "\n" (dir: "media_dir=${dir}") cfg.mediaDirs));
 in
 
 {
@@ -37,8 +44,8 @@ in
     };
 
     services.minidlna.loglevel = mkOption {
-      type = types.str;
-      default = "warn";
+      type = types.nullOr types.str;
+      default = null;
       example = "general,artwork,database,inotify,scanner,metadata,http,ssdp,tivo=warn";
       description =
         ''
@@ -65,24 +72,43 @@ in
     };
 
     services.minidlna.config = mkOption {
-      type = types.lines;
-      description = "The contents of MiniDLNA's configuration file.";
+      type = types.attrsOf configType;
+      description = ''
+        The contents of MiniDLNA's configuration file. Refer to
+        <link xlink:href="https://www.systutorials.com/docs/linux/man/5-minidlna.conf"/>
+        for details on supported values.
+      '';
+      example = literalExample ''
+        {
+          friendly_name = "rpi3";
+          log_level = "error";
+          root_container = "B";
+          notify_interval = 60;
+          album_art_names = [
+            "Cover.jpg/cover.jpg/AlbumArtSmall.jpg/albumartsmall.jpg"
+            "AlbumArt.jpg/albumart.jpg/Album.jpg/album.jpg"
+            "Folder.jpg/folder.jpg/Thumb.jpg/thumb.jpg"
+          ];
+        }
+      '';
     };
   };
 
   ###### implementation
   config = mkIf cfg.enable {
-    services.minidlna.config =
-      ''
-        port=${toString port}
-        friendly_name=${config.networking.hostName} MiniDLNA
-        db_dir=/var/cache/minidlna
-        log_level=${cfg.loglevel}
-        inotify=yes
-        ${concatMapStrings (dir: ''
-          media_dir=${dir}
-        '') cfg.mediaDirs}
-      '';
+    warnings = lib.optional (cfg.loglevel != null) ''
+      The services.minidlna.loglevel option has been deprecated. Please
+      use config.services.minidlna.config.log_level instead.
+    '';
+
+    services.minidlna.config = {
+      port = mkDefault port;
+      friendly_name = mkDefault "${config.networking.hostName} MiniDLNA";
+      db_dir = "/var/cache/minidlna";
+      log_level = mkDefault (cfg.loglevel ? "warn");
+      inotify = mkDefault "yes";
+      media_dir = cfg.mediaDirs;
+    };
 
     users.users.minidlna = {
       description = "MiniDLNA daemon user";
@@ -111,8 +137,7 @@ in
             RuntimeDirectory = "minidlna";
             PIDFile = "/run/minidlna/pid";
             ExecStart =
-              "${pkgs.minidlna}/sbin/minidlnad -S -P /run/minidlna/pid" +
-              " -f ${pkgs.writeText "minidlna.conf" cfg.config}";
+              "${pkgs.minidlna}/sbin/minidlnad -S -P /run/minidlna/pid -f ${configFile}";
           };
       };
   };
