@@ -165,6 +165,44 @@ let
     sha256 = "0d4p1gpl8gkzdiv860qzxfz250ryf0wmjgyc8qcaaqgkdyh5jy5p";
   };
 
+  pdflib = pkgs.stdenv.mkDerivation rec {
+    pname = "PDFlib";
+    version = "9.2.0";
+
+    src = pkgs.fetchurl {
+      url = "https://www.pdflib.com/binaries/PDFlib/920/PDFlib-${version}-Linux-x86${pkgs.stdenv.lib.optionalString pkgs.stdenv.is64bit "_64"}-php.tar.gz";
+      sha256 = if pkgs.stdenv.is64bit then
+        "48ca36528316e5b7d706fe3114a429c2a33c637d9b4dd9b17e6abd2a9b34efd0" else
+        "72e5feafb5c8e4a2f5cd4719d014ad469f783825a9e0cf075bf703b6f0948a04"
+      ;
+    };
+
+    installPhase = let
+      phpVer = (builtins.substring 0 1 php.version) + (builtins.substring 2 1 php.version) + "0";
+    in ''
+      mkdir -p $out/lib/php/extensions
+
+      cp bind/php/php-${phpVer}/php_pdflib.so $out/lib/php/extensions/php_pdflib.so
+      cp bind/php/php-${phpVer}-nts/php_pdflib.so $out/lib/php/extensions/php_pdflib-nts.so
+    '';
+
+    preFixup = let
+      # we prepare our library path in the let clause to avoid it become part of the input of mkDerivation
+      libPath = pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ];
+    in ''
+      patchelf --set-rpath "${libPath}" $out/lib/php/extensions/php_pdflib.so
+      patchelf --set-rpath "${libPath}" $out/lib/php/extensions/php_pdflib-nts.so
+    '';
+
+    meta = with pkgs.lib; {
+      description = "A library for generating PDF on the Fly";
+      license = licenses.unfree;
+      homepage = https://www.pdflib.com;
+      maintainers = with maintainers; [ aanderse ];
+      platforms = platforms.linux;
+    };
+  };
+
   sqlsrv = buildPecl rec {
     name = "sqlsrv-5.6.0";
     sha256 = "089iy2lz7p3x9c88zaxrg37m74gh3phxqsldr33nj16rpb5d67bc";
