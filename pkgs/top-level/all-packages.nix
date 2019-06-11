@@ -8245,6 +8245,8 @@ in
 
   gvm-libs = callPackage ../tools/security/gvm-libs { };
 
+  gvmd = callPackage ../tools/security/gvmd { };
+
   inherit (callPackages ../applications/networking/cluster/hadoop { })
     hadoop_2_7
     hadoop_2_8
