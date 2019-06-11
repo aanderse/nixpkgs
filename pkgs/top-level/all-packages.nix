@@ -5033,6 +5033,8 @@ in
 
   opentsdb = callPackage ../tools/misc/opentsdb {};
 
+  openvas-scanner = callPackage ../tools/security/openvas-scanner { };
+
   openvpn = callPackage ../tools/networking/openvpn { };
 
   openvpn_learnaddress = callPackage ../tools/networking/openvpn/openvpn_learnaddress.nix { };
