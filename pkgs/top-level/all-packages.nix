@@ -8236,6 +8236,8 @@ in
 
   groovy = callPackage ../development/interpreters/groovy { };
 
+  gsa = callPackage ../tools/security/gsa { };
+
   guile_1_8 = callPackage ../development/interpreters/guile/1.8.nix { };
 
   # Needed for autogen
