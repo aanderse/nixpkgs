@@ -46,6 +46,48 @@ let
       };
     };
 
+  userOpts = { ... }:
+    {
+      options = {
+        name = mkOption {
+          type = types.str;
+          description = ''
+            Name of the user to ensure.
+          '';
+        };
+        isSuperUser = mkOption {
+          type = types.bool;
+          default = false;
+          description = ''
+            Whether this user should be granted super user privileges. In the context of mysql/mariadb this
+            equates to: ALL PRIVILEGES + WITH GRANT OPTION on all databases.
+          '';
+        };
+        ensurePermissions = mkOption {
+          type = types.attrsOf types.str;
+          default = {};
+          description = ''
+            Permissions to ensure for the user, specified as attribute set.
+            The attribute names specify the database and tables to grant the permissions for,
+            separated by a dot. You may use wildcards here.
+            The attribute values specfiy the permissions to grant.
+            You may specify one or multiple comma-separated SQL privileges here.
+
+            For more information on how to specify the target
+            and on which privileges exist, see the
+            <link xlink:href="https://mariadb.com/kb/en/library/grant/">GRANT syntax</link>.
+            The attributes are used as <code>GRANT ''${attrName} ON ''${attrValue}</code>.
+          '';
+          example = literalExample ''
+            {
+              "database.*" = "ALL PRIVILEGES";
+              "*.*" = "SELECT, LOCK TABLES";
+            }
+          '';
+        };
+      };
+    };
+
 in
 
 {
@@ -170,38 +212,7 @@ in
       };
 
       ensureUsers = mkOption {
-        type = types.listOf (types.submodule {
-          options = {
-            name = mkOption {
-              type = types.str;
-              description = ''
-                Name of the user to ensure.
-              '';
-            };
-            ensurePermissions = mkOption {
-              type = types.attrsOf types.str;
-              default = {};
-              description = ''
-                Permissions to ensure for the user, specified as attribute set.
-                The attribute names specify the database and tables to grant the permissions for,
-                separated by a dot. You may use wildcards here.
-                The attribute values specfiy the permissions to grant.
-                You may specify one or multiple comma-separated SQL privileges here.
-
-                For more information on how to specify the target
-                and on which privileges exist, see the
-                <link xlink:href="https://mariadb.com/kb/en/library/grant/">GRANT syntax</link>.
-                The attributes are used as <code>GRANT ''${attrName} ON ''${attrValue}</code>.
-              '';
-              example = literalExample ''
-                {
-                  "database.*" = "ALL PRIVILEGES";
-                  "*.*" = "SELECT, LOCK TABLES";
-                }
-              '';
-            };
-          };
-        });
+        type = with types; listOf (submodule userOpts);
         default = [];
         description = ''
           Ensures that the specified users exist and have at least the ensured permissions.
@@ -224,6 +235,10 @@ in
               ensurePermissions = {
                 "*.*" = "SELECT, LOCK TABLES";
               };
+            }
+            {
+              name = "timmy";
+              isSuperUser = true;
             }
           ]
         '';
@@ -432,6 +447,9 @@ in
                 ${concatMapStrings (user:
                   ''
                     ( echo "CREATE USER IF NOT EXISTS '${user.name}'@'localhost' IDENTIFIED WITH ${if isMariaDB then "unix_socket" else "auth_socket"};"
+                      ${optionalString user.isSuperUser ''
+                        echo "GRANT ALL PRIVILEGES ON *.* TO '${user.name}'@'localhost' WITH GRANT OPTION;"
+                      ''}
                       ${concatStringsSep "\n" (mapAttrsToList (database: permission: ''
                         echo "GRANT ${permission} ON ${database} TO '${user.name}'@'localhost';"
                       '') user.ensurePermissions)}
@@ -443,7 +461,7 @@ in
                     db = if isString database then { name = database; owner = null; } else database;
                   in
                   ''
-                    echo "GRANT ALL PRIVILEGES ON ${db.name} TO '${db.owner}' WITH GRANT OPTION;" | ${mysql}/bin/mysql -u root -N
+                    echo "GRANT ALL PRIVILEGES ON ${db.name}.* TO ${db.owner} WITH GRANT OPTION;" | ${mysql}/bin/mysql -u root -N
                   '') (filter (database: isAttrs database && database.owner != null) cfg.ensureDatabases)}
               '';
             in
