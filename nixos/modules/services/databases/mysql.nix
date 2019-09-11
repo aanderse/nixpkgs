@@ -25,6 +25,27 @@ let
   installOptions =
     "${mysqldOptions} ${lib.optionalString isMysqlAtLeast57 "--insecure"}";
 
+  dbOpts = { ... }:
+    {
+      options = {
+        name = mkOption {
+          type = types.str;
+          description = ''
+            The name of the database to create.
+          '';
+        };
+
+        owner = mkOption {
+          type = with types; nullOr str;
+          default = null;
+          description = ''
+            Owner of the database which in mysql/mariadb equates to: ALL PRIVILEGES + WITH GRANT OPTION
+          '';
+          example = "timmy@localhost";
+        };
+      };
+    };
+
 in
 
 {
@@ -130,7 +151,7 @@ in
       };
 
       ensureDatabases = mkOption {
-        type = types.listOf types.str;
+        type = let coerceFunc = name: { inherit name; }; in with types; listOf (coercedTo str coerceFunc (submodule dbOpts));
         default = [];
         description = ''
           Ensures that the specified databases exist.
@@ -138,10 +159,14 @@ in
           option is changed. This means that databases created once through this option or
           otherwise have to be removed manually.
         '';
-        example = [
-          "nextcloud"
-          "matomo"
-        ];
+        example = literalExample ''
+          [
+            "nextcloud"
+            "matomo"
+            { name = "wordpress"; }
+            { name = "moodle"; owner = "timmy@localhost"; }
+          ]
+        '';
       };
 
       ensureUsers = mkOption {
@@ -396,13 +421,13 @@ in
                     rm /tmp/mysql_init
                 fi
 
-                ${optionalString (cfg.ensureDatabases != []) ''
-                  (
-                  ${concatMapStrings (database: ''
-                    echo "CREATE DATABASE IF NOT EXISTS \`${database}\`;"
+                ${concatMapStrings (database:
+                  let
+                    name = if isString database then database else database.name;
+                  in
+                  ''
+                    echo "CREATE DATABASE IF NOT EXISTS \`${name}\`;" | ${mysql}/bin/mysql -u root -N
                   '') cfg.ensureDatabases}
-                  ) | ${mysql}/bin/mysql -u root -N
-                ''}
 
                 ${concatMapStrings (user:
                   ''
@@ -412,6 +437,14 @@ in
                       '') user.ensurePermissions)}
                     ) | ${mysql}/bin/mysql -u root -N
                   '') cfg.ensureUsers}
+
+                ${concatMapStrings (database:
+                  let
+                    db = if isString database then { name = database; owner = null; } else database;
+                  in
+                  ''
+                    echo "GRANT ALL PRIVILEGES ON ${db.name} TO '${db.owner}' WITH GRANT OPTION;" | ${mysql}/bin/mysql -u root -N
+                  '') (filter (database: isAttrs database && database.owner != null) cfg.ensureDatabases)}
               '';
             in
               # ensureDatbases & ensureUsers depends on this script being run as root
