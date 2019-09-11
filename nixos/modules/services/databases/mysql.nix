@@ -55,6 +55,27 @@ let
             Name of the user to ensure.
           '';
         };
+        host = mkOption {
+          type = types.str;
+          default = "localhost";
+          description = ''
+            Host the user will be connecting from.
+          '';
+        };
+        passwordFile = mkOption {
+          type = with types; nullOr path;
+          default = null;
+          description = ''
+            A file containing a password for the user to ensure.
+          '';
+        };
+        hashedPasswordFile = mkOption {
+          type = with types; nullOr path;
+          default = null;
+          description = ''
+            A file containing a hashed password for the user to ensure.
+          '';
+        };
         isSuperUser = mkOption {
           type = types.bool;
           default = false;
@@ -446,12 +467,19 @@ in
 
                 ${concatMapStrings (user:
                   ''
-                    ( echo "CREATE USER IF NOT EXISTS '${user.name}'@'localhost' IDENTIFIED WITH ${if isMariaDB then "unix_socket" else "auth_socket"};"
+                    (
+                      ${if (user.passwordFile != null) then ''
+                        echo "CREATE USER IF NOT EXISTS '${user.name}'@'${user.host}' IDENTIFIED BY '$(head -n1 ${user.passwordFile})';"
+                      '' else if (user.hashedPasswordFile != null) then ''
+                        echo "CREATE USER IF NOT EXISTS '${user.name}'@'${user.host}' IDENTIFIED BY PASSWORD '$(head -n1 ${user.hashedPasswordFile})';"
+                      '' else ''
+                        echo "CREATE USER IF NOT EXISTS '${user.name}'@'localhost' IDENTIFIED WITH ${if isMariaDB then "unix_socket" else "auth_socket"};"
+                      ''}
                       ${optionalString user.isSuperUser ''
-                        echo "GRANT ALL PRIVILEGES ON *.* TO '${user.name}'@'localhost' WITH GRANT OPTION;"
+                        echo "GRANT ALL PRIVILEGES ON *.* TO '${user.name}'@'${user.host}' WITH GRANT OPTION;"
                       ''}
                       ${concatStringsSep "\n" (mapAttrsToList (database: permission: ''
-                        echo "GRANT ${permission} ON ${database} TO '${user.name}'@'localhost';"
+                        echo "GRANT ${permission} ON ${database} TO '${user.name}'@'${user.host}';"
                       '') user.ensurePermissions)}
                     ) | ${mysql}/bin/mysql -u root -N
                   '') cfg.ensureUsers}
