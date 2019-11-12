@@ -1,4 +1,4 @@
-{ stdenv, fetchgit, autoreconfHook, boost, fcgi, openssl, opensaml-cpp, log4shib, pkgconfig, xercesc, xml-security-c, xml-tooling-c }:
+{ stdenv, fetchgit, autoreconfHook, boost, fcgi, openssl, opensaml-cpp, log4shib, pkgconfig, xercesc, xml-security-c, xml-tooling-c, apacheHttpd, apr, aprutil }:
 
 stdenv.mkDerivation rec {
   pname = "shibboleth-sp";
@@ -14,7 +14,9 @@ stdenv.mkDerivation rec {
   buildInputs = [ boost fcgi openssl opensaml-cpp log4shib xercesc xml-security-c xml-tooling-c ];
 
   configureFlags = [
-    "--without-apxs"
+    "--with-apxs=${apacheHttpd.dev}/bin/apxs"
+    "--with-apr1=${apr.dev}/bin/apr-1-config"
+    "--with-apu1=${aprutil.dev}/bin/apu-1-config"
     "--with-xmltooling=${xml-tooling-c}"
     "--with-saml=${opensaml-cpp}"
     "--with-fastcgi"
