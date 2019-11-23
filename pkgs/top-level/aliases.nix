@@ -68,6 +68,7 @@ mapAliases ({
   conntrack_tools = conntrack-tools; # added 2018-05
   cool-old-term = cool-retro-term; # added 2015-01-31
   corebird = throw "deprecated 2019-10-02: See https://www.patreon.com/posts/corebirds-future-18921328. Please use Cawbird as replacement.";
+  coredumper = throw "coredumper has been removed: Abandoned by upstream."; # added 2019-11-16
   cpp-gsl = microsoft_gsl; # added 2019-05-24
   cupsBjnp = cups-bjnp; # added 2016-01-02
   cups_filters = cups-filters; # added 2016-08
@@ -308,6 +309,9 @@ mapAliases ({
   procps-ng = procps; # added 2018-06-08
   pyo3-pack = maturin;
   pulseaudioLight = pulseaudio; # added 2018-04-25
+  phonon-backend-gstreamer = throw "Please use libsForQt5.phonon-backend-gstreamer, as Qt4 support in this package has been removed."; # added 2019-11-22
+  phonon-backend-vlc = throw "Please use libsForQt5.phonon-backend-vlc, as Qt4 support in this package has been removed."; # added 2019-11-22
+  phonon = throw "Please use libsForQt5.phonon, as Qt4 support in this package has been removed."; # added 2019-11-22
   qca-qt5 = libsForQt5.qca-qt5;  # added 2015-12-19
   quake3game = ioquake3; # added 2016-01-14
   qwt6 = libsForQt5.qwt;  # added 2015-12-19
@@ -342,6 +346,7 @@ mapAliases ({
   scim = sc-im; # added 2016-01-22
   scollector = bosun; # added 2018-04-25
   sdlmame = mame; # added 2019-10-30
+  seg3d = throw "seg3d has been removed from nixpkgs (2019-11-10)";
   shared_mime_info = shared-mime-info; # added 2018-02-25
   skrooge2 = skrooge; # added 2017-02-18
   skype = skypeforlinux; # added 2017-07-27
@@ -351,6 +356,8 @@ mapAliases ({
   slurm-llnl-full = slurm-full; # renamed July 2017
   slurm-full = slurm; # added 2018-05-1
   smbclient = samba; # added 2018-04-25
+  slim = throw "slim has been removed. Please use a different display-manager"; # added 2019-11-11
+  slimThemes = throw "slimThemes has been removed because slim has been also"; # added 2019-11-11
   spaceOrbit = space-orbit; # addewd 2016-05-23
   speech_tools = speech-tools; # added 2018-04-25
   speedtest_cli = speedtest-cli;  # added 2015-02-17
@@ -415,6 +422,8 @@ mapAliases ({
   wireguard = wireguard-tools; # added 2018-05-19
   morituri = whipper; # added 2018-09-13
   xfceUnstable = xfce4-14; # added 2019-09-17
+  xfce4-14 = xfce;
+  xfce4-12 = xfce;
   x11 = xlibsWrapper; # added 2015-09
   xbmc = kodi; # added 2018-04-25
   xbmcPlain = kodiPlain; # added 2018-04-25
@@ -425,6 +434,7 @@ mapAliases ({
   xpraGtk3 = xpra; # added 2018-09-13
   youtubeDL = youtube-dl;  # added 2014-10-26
   zdfmediathk = mediathekview; # added 2019-01-19
+  gnome_user_docs = gnome-user-docs; # added 2019-11-20
 
   # TODO(ekleog): add ‘wasm’ alias to ‘ocamlPackages.wasm’ after 19.03
   # branch-off
