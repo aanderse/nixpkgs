@@ -8,7 +8,7 @@ let
   configOpts = {name, config, ...}: {
     options = {
       type = mkOption{
-        type = types.str;
+        type = types.enum [ "mail" "web" ];
         default = "web";
         example = "mail";
         description = ''
@@ -18,7 +18,7 @@ let
       domain = mkOption {
         type = types.str;
         default = name;
-        description = "The domain name to collect stats for";
+        description = "The domain name to collect stats for.";
         example = "example.com";
       };
 
@@ -68,16 +68,12 @@ let
       };
 
       webService = {
-        enable = mkOption {
-          type = types.bool;
-          default = true;
-          description = "Enable the awstats web service";
-        };
+        enable = mkEnableOption "awstats web service";
 
         hostname = mkOption {
           type = types.str;
           default = config.domain;
-          description = "The hostname the web service appears under";
+          description = "The hostname the web service appears under.";
         };
 
         urlPrefix = mkOption {
@@ -92,15 +88,7 @@ let
 in
 {
   options.services.awstats = {
-    enable = mkOption {
-      type = types.bool;
-      default = false;
-      description = ''
-        Enable the awstats program (but not service).
-        Currently only simple httpd (Apache) configs are supported,
-        and awstats plugins may not work correctly.
-      '';
-    };
+    enable = mkEnableOption "awstats";
 
     dataDir = mkOption {
       type = types.path;
@@ -112,7 +100,7 @@ in
       type = types.path;
       default = "/run/awstats";
       description = ''
-        The directory where runtime awstats data will be stored
+        The directory where runtime awstats data will be stored.
       '';
     };
 
@@ -127,7 +115,7 @@ in
           };
         }
       '';
-      description = "Attribute set of domains to collect stats for";
+      description = "Attribute set of domains to collect stats for.";
     };
 
     updateAt = mkOption {
@@ -148,7 +136,6 @@ in
     environment.systemPackages = [ package.bin ];
 
     environment.etc = mapAttrs' (name: opts:
-    assert elem opts.type [ "web" "mail" ];
     nameValuePair "awstats/awstats.${name}.conf" {
       source = pkgs.runCommand "awstats.${name}.conf"
       { preferLocalBuild = true; }
@@ -156,7 +143,7 @@ in
         sed \
       ''
       # set up mail stats
-      + (if opts.type == "mail" then
+      + optionalString (opts.type == "mail")
       ''
         -e 's|^\(LogType\)=.*$|\1=M|' \
         -e 's|^\(LevelForBrowsersDetection\)=.*$|\1=0|' \
@@ -190,11 +177,11 @@ in
         -e 's|^\(ShowMiscStats\)=.*$|\1=0|' \
         -e 's|^\(ShowHTTPErrorsStats\)=.*$|\1=0|' \
         -e 's|^\(ShowSMTPErrorsStats\)=.*$|\1=1|' \
-      '' else "")
+      ''
       +
       # common options
       ''
-        -e 's|^\(DirData\)=.*$|\1="${cfg.dataDir}"|' \
+        -e 's|^\(DirData\)=.*$|\1="${cfg.dataDir}/${name}"|' \
         -e 's|^\(DirIcons\)=.*$|\1="icons"|' \
         -e 's|^\(CreateDirDataIfNotExists\)=.*$|\1=1|' \
         -e 's|^\(SiteDomain\)=.*$|\1="${name}"|' \
@@ -230,7 +217,7 @@ in
             alias = "${package.out}/wwwroot/icon/";
           };
           "${opts.webService.urlPrefix}/" = {
-            alias = "${cfg.dataDir}/";
+            alias = "${cfg.dataDir}/${name}/";
             extraConfig = ''
               autoindex on;
             '';
@@ -243,11 +230,10 @@ in
     systemd.services = mkIf (cfg.updateAt != null) (mapAttrs' (name: opts:
       nameValuePair "awstats-${name}-update" {
         description = "update awstats for ${name}";
-        script = if opts.type == "mail" then
+        script = optionalString (opts.type == "mail")
         ''
-          mkdir -p "${cfg.runDir}"
-          if [[ -f "${cfg.runDir}/${name}-cursor" ]]; then
-            CURSOR="$(cat "${cfg.runDir}/${name}-cursor" | tr -d '\n')"
+          if [[ -f "${cfg.dataDir}/${name}-cursor" ]]; then
+            CURSOR="$(cat "${cfg.dataDir}/${name}-cursor" | tr -d '\n')"
             if [[ -n "$CURSOR" ]]; then
               echo "Using cursor: $CURSOR"
               export OLD_CURSOR="--cursor $CURSOR"
@@ -257,13 +243,11 @@ in
           echo "New cursor: $NEW_CURSOR"
           ${package.bin}/bin/awstats -update -config=${name}
           if [ -n "$NEW_CURSOR" ]; then
-            echo -n "$NEW_CURSOR" > ${cfg.runDir}/${name}-cursor
+            echo -n "$NEW_CURSOR" > ${cfg.dataDir}/${name}-cursor
           fi
-        ''
-        else ""
-        + ''
+        '' + ''
           ${package.out}/share/awstats/tools/awstats_buildstaticpages.pl \
-            -config=${name} -update -dir=${cfg.dataDir} \
+            -config=${name} -update -dir=${cfg.dataDir}/${name} \
             -awstatsprog=${package.bin}/bin/awstats
         '';
         startAt = cfg.updateAt;
