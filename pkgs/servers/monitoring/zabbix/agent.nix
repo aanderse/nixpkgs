@@ -1,4 +1,7 @@
-{ stdenv, fetchurl, pkgconfig, libiconv, openssl, pcre }:
+{ stdenv, lib, fetchurl, go, pkgconfig
+, libiconv, openssl, pcre, zlib
+, enableAgent2 ? false
+}:
 
 import ./versions.nix ({ version, sha256 }:
   stdenv.mkDerivation {
@@ -10,15 +13,17 @@ import ./versions.nix ({ version, sha256 }:
       inherit sha256;
     };
 
-    nativeBuildInputs = [ pkgconfig ];
+    nativeBuildInputs = [ pkgconfig ] ++ lib.optionals enableAgent2 [ go ];
     buildInputs = [
       libiconv
       openssl
       pcre
-    ];
+    ] ++ lib.optionals enableAgent2 [ zlib ];
+
+    HOME = ".";
 
     configureFlags = [
-      "--enable-agent"
+      (if enableAgent2 then "--enable-agent2" else "--enable-agent")
       "--with-iconv"
       "--with-libpcre"
       "--with-openssl=${openssl.dev}"
