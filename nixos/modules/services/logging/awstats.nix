@@ -201,8 +201,8 @@ in
 
     # create data directory with the correct permissions
     systemd.tmpfiles.rules = [
-      "d '${cfg.dataDir}' - ${config.services.nginx.user} ${config.services.nginx.group} - -"
-      "Z '${cfg.dataDir}' - ${config.services.nginx.user} ${config.services.nginx.group} - -"
+      "d '${cfg.dataDir}' 755 root root - -"
+      "Z '${cfg.dataDir}' 755 root root - -"
     ];
 
     # nginx options
