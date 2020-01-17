@@ -15030,6 +15030,8 @@ in
 
     mod_evasive = callPackage ../servers/http/apache-modules/mod_evasive { };
 
+    mod_maxminddb = callPackage ../servers/http/apache-modules/mod_maxminddb { };
+
     mod_perl = callPackage ../servers/http/apache-modules/mod_perl { };
 
     mod_fastcgi = callPackage ../servers/http/apache-modules/mod_fastcgi { };
