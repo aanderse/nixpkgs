@@ -1,4 +1,4 @@
-{ fetchurl, stdenv, unixODBC, cmake, postgresql, mysql, sqlite, zlib, libxml2, dpkg, lib, openssl, kerberos, libuuid, patchelf, libiconv, fetchFromGitHub }:
+{ fetchurl, fetchzip, stdenv, unixODBC, cmake, postgresql, mysql, sqlite, zlib, libxml2, dpkg, lib, openssl, kerberos, libuuid, patchelf, libiconv, fetchFromGitHub, oracle-instantclient, autoPatchelfHook }:
 
 # I haven't done any parameter tweaking.. So the defaults provided here might be bad
 
@@ -172,6 +172,39 @@
       license = licenses.unfree;
       platforms = platforms.linux;
       maintainers = with maintainers; [ spencerjanssen ];
+    };
+  };
+
+  oracle = stdenv.mkDerivation rec {
+    pname = "oracle";
+    version = "19.5.0.0.0";
+
+    src = fetchzip {
+      url = "https://download.oracle.com/otn_software/linux/instantclient/195000/instantclient-odbc-linux.x64-19.5.0.0.0dbru.zip";
+      sha256 = "08ja1aq6dm2kbwc6c90wffn325whil58a1ayqx3nn33aqzqj8g3i";
+    };
+
+    nativeBuildInputs = [ autoPatchelfHook ];
+    buildInputs = [ oracle-instantclient ];
+
+    buildPhase = "";
+
+    installPhase = ''
+      mkdir -p $out
+      mkdir -p $out/lib
+      cp -r libsqora.so.19.1 $out/lib
+    '';
+
+    passthru = {
+      fancyName = "Oracle 19 ODBC driver";
+      driver = "lib/libsqora.so.19.1";
+    };
+
+    meta = with stdenv.lib; {
+      description = "Oracle ODBC driver for Oracle 19";
+      # homepage =  https://odbc.postgresql.org/;
+      # license = licenses.lgpl2;
+      platforms = platforms.linux;
     };
   };
 }
