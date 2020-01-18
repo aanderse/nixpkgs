@@ -16,6 +16,8 @@ let
   isPhp73 = pkgs.lib.versionAtLeast php.version "7.3";
   isPhp74 = pkgs.lib.versionAtLeast php.version "7.4";
 
+  inherit php;
+
   apcu = buildPecl {
     version = "5.1.18";
     pname = "apcu";
