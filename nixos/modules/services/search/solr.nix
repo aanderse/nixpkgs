@@ -54,7 +54,23 @@ in
 
   config = mkIf cfg.enable {
 
-    environment.systemPackages = [ cfg.package ];
+    environment.systemPackages = [
+      (pkgs.runCommand "solr" { buildInputs = [ pkgs.makeWrapper ]; } ''
+        mkdir -p $out/bin
+
+        makeWrapper ${cfg.package}/bin/solr $out/bin/solr \
+          --set SOLR_HOME "${cfg.stateDir}/data" \
+          --set LOG4J_PROPS "${cfg.stateDir}/log4j2.xml" \
+          --set SOLR_LOGS_DIR "${cfg.stateDir}/logs" \
+          --set SOLR_PORT "${toString cfg.port}"
+
+        makeWrapper ${cfg.package}/bin/post $out/bin/post \
+          --set SOLR_HOME "${cfg.stateDir}/data" \
+          --set LOG4J_PROPS "${cfg.stateDir}/log4j2.xml" \
+          --set SOLR_LOGS_DIR "${cfg.stateDir}/logs" \
+          --set SOLR_PORT "${toString cfg.port}"
+      '')
+    ];
 
     systemd.services.solr = {
       after = [ "network.target" "remote-fs.target" "nss-lookup.target" "systemd-journald-dev-log.socket" ];
