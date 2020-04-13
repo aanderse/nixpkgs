@@ -98,7 +98,7 @@ in
     systemd.services.dbus = {
       # Don't restart dbus-daemon. Bad things tend to happen if we do.
       reloadIfChanged = true;
-      restartTriggers = [ configDir ];
+      reloadTriggers = [ configDir ];
       environment = { LD_LIBRARY_PATH = config.system.nssModules.path; };
     };
 
@@ -106,7 +106,7 @@ in
       services.dbus = {
         # Don't restart dbus-daemon. Bad things tend to happen if we do.
         reloadIfChanged = true;
-        restartTriggers = [ configDir ];
+        reloadTriggers = [ configDir ];
       };
       sockets.dbus.wantedBy = mkIf cfg.socketActivated [ "sockets.target" ];
     };

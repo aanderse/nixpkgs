@@ -45,7 +45,8 @@ let
           description = "BIRD Internet Routing Daemon (${descr})";
           wantedBy = [ "multi-user.target" ];
           reloadIfChanged = true;
-          restartTriggers = [ config.environment.etc."bird/${variant}.conf".source ];
+          reloadTriggers = [ config.environment.etc."bird/${variant}.conf".source ];
+          restartTriggers = [ pkg ];
           serviceConfig = {
             Type = "forking";
             Restart = "on-failure";

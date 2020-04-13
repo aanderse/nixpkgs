@@ -218,7 +218,10 @@ while (my ($unit, $state) = each %{$activePrev}) {
                 # FIXME: do something?
             } else {
                 my $unitInfo = parseUnit($newUnitFile);
-                if (boolIsTrue($unitInfo->{'X-ReloadIfChanged'} // "no")) {
+                # A reload is not always possible, so we should fallback to a restart if required (the binary running has changed)
+                my $prevUnitInfo = parseUnit($prevUnitFile);
+
+                if (boolIsTrue($unitInfo->{'X-ReloadIfChanged'} // "no") && $unitInfo->{'X-RestartTriggers'} eq $prevUnitInfo->{'X-RestartTriggers'}) {
                     $unitsToReload{$unit} = 1;
                     recordUnit($reloadListFile, $unit);
                 }

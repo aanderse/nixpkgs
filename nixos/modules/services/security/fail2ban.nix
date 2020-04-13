@@ -240,8 +240,9 @@ in
       after = [ "network.target" ];
       partOf = optional config.networking.firewall.enable "firewall.service";
 
-      restartTriggers = [ fail2banConf jailConf pathsConf ];
+      restartTriggers = [ cfg.package ];
       reloadIfChanged = true;
+      reloadTriggers = [ fail2banConf jailConf pathsConf ];
 
       path = [ cfg.package cfg.packageFirewall pkgs.iproute ];
 

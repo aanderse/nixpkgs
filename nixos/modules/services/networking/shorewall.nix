@@ -47,7 +47,8 @@ in {
       wants           = [ "network-pre.target" ];
       wantedBy        = [ "multi-user.target" ];
       reloadIfChanged = true;
-      restartTriggers = lib.attrValues cfg.configs;
+      reloadTriggers = lib.attrValues cfg.configs;
+      restartTriggers = [ cfg.package ];
       serviceConfig = {
         Type            = "oneshot";
         RemainAfterExit = "yes";

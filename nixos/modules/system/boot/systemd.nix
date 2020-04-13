@@ -223,6 +223,8 @@ let
           { Conflicts = toString config.conflicts; }
         // optionalAttrs (config.requisite != [])
           { Requisite = toString config.requisite; }
+        // optionalAttrs (config.reloadTriggers != [])
+          { X-Restart-Triggers = toString config.reloadTriggers; }
         // optionalAttrs (config.restartTriggers != [])
           { X-Restart-Triggers = toString config.restartTriggers; }
         // optionalAttrs (config.description != "") {
@@ -335,11 +337,8 @@ let
               # systemd max line length is now 1MiB
               # https://github.com/systemd/systemd/commit/e6dde451a51dc5aaa7f4d98d39b8fe735f73d2af
               in if stringLength s >= 1048576 then throw "The value of the environment variable ‘${n}’ in systemd service ‘${name}.service’ is too long." else s) (attrNames env)}
-          ${if def.reloadIfChanged then ''
-            X-ReloadIfChanged=true
-          '' else if !def.restartIfChanged then ''
-            X-RestartIfChanged=false
-          '' else ""}
+          ${optionalString def.reloadIfChanged "X-ReloadIfChanged=true"}
+          ${optionalString (!def.restartIfChanged) "X-RestartIfChanged=false"}
           ${optionalString (!def.stopIfChanged) "X-StopIfChanged=false"}
           ${attrsToSection def.serviceConfig}
         '';

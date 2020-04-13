@@ -121,8 +121,12 @@ in
       requires = optional hasDocker "docker.service";
       wantedBy = [ "multi-user.target" ];
       reloadIfChanged = true;
-      restartTriggers = [
+      reloadTriggers = [
          config.environment.etc."gitlab-runner/config.toml".source
+      ];
+      restartTriggers = [
+        cfg.package
+        cfg.workDir
       ];
       serviceConfig = {
         StateDirectory = "gitlab-runner";

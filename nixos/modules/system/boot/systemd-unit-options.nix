@@ -191,6 +191,16 @@ in rec {
       '';
     };
 
+    reloadTriggers = mkOption {
+      default = [];
+      type = types.listOf types.unspecified;
+      description = ''
+        An arbitrary list of items such as derivations.  If any item
+        in the list changes between reconfigurations, the service will
+        be reloaded.
+      '';
+    };
+
     restartTriggers = mkOption {
       default = [];
       type = types.listOf types.unspecified;

@@ -62,6 +62,7 @@ in
       services."u9fs@" = {
         description = "9P Protocol Server";
         reloadIfChanged = true;
+        restartTriggers = [ pkgs.u9fs ] ++ cfg.extraArgs;
         requires = [ "u9fs.socket" ];
         serviceConfig =
           { ExecStart = "-${pkgs.u9fs}/bin/u9fs ${cfg.extraArgs}";
