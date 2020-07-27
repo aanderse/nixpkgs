@@ -62,6 +62,11 @@ in {
 
           Setting the <literal>rules</literal> option will ignore the
           <literal>ruleFile</literal> option.
+
+          If left as the default value the required directory will automatically
+          be created before the usbguard service starts, otherwise the sysadmin
+          is responsible for ensuring the directory exists with appropriate
+          ownership and permissions.
         '';
       };
 
@@ -163,6 +168,11 @@ in {
           access control definition files. See the IPC ACCESS CONTROL section
           in <citerefentry><refentrytitle>usbguard-daemon.conf</refentrytitle>
           <manvolnum>5</manvolnum></citerefentry> for more details.
+
+          If left as the default value this directory will automatically be
+          created before the usbguard service starts, otherwise the sysadmin
+          is responsible for ensuring the directory exists with appropriate
+          ownership and permissions.
         '';
       };
 
@@ -179,6 +189,11 @@ in {
         default = "/var/log/usbguard/usbguard-audit.log";
         description = ''
           USBGuard audit events log file path.
+
+          If left as the default value the required directory will automatically
+          be created before the usbguard service starts, otherwise the sysadmin
+          is responsible for ensuring the directory exists with appropriate
+          ownership and permissions.
         '';
       };
     };
@@ -197,40 +212,48 @@ in {
       wantedBy = [ "basic.target" ];
       wants = [ "systemd-udevd.service" ];
 
-      # make sure an empty rule file and required directories exist
-      preStart = ''
-        mkdir -p $(dirname "${cfg.ruleFile}") $(dirname "${cfg.auditFilePath}") "${cfg.IPCAccessControlFiles}" \
-          && ([ -f "${cfg.ruleFile}" ] || touch ${cfg.ruleFile})
-      '';
+      # make sure an empty rule file exists
+      preStart = ''[ -f "${cfg.ruleFile}" ] || touch ${cfg.ruleFile}'';
 
-      serviceConfig = {
-        Type = "simple";
-        ExecStart = ''${cfg.package}/bin/usbguard-daemon -P -k -c ${daemonConfFile}'';
-        Restart = "on-failure";
+      serviceConfig = mkMerge [
+        {
+          Type = "simple";
+          ExecStart = ''${cfg.package}/bin/usbguard-daemon -P -k -c ${daemonConfFile}'';
+          Restart = "on-failure";
 
-        AmbientCapabilities = "";
-        CapabilityBoundingSet = "CAP_CHOWN CAP_FOWNER";
-        DeviceAllow = "/dev/null rw";
-        DevicePolicy = "strict";
-        IPAddressDeny = "any";
-        LockPersonality = true;
-        MemoryDenyWriteExecute = true;
-        NoNewPrivileges = true;
-        PrivateDevices = true;
-        PrivateTmp = true;
-        ProtectControlGroups = true;
-        ProtectHome = true;
-        ProtectKernelModules = true;
-        ProtectSystem = true;
-        ReadOnlyPaths = "-/";
-        ReadWritePaths = "-/dev/shm -${dirOf cfg.auditFilePath} -/tmp -${dirOf cfg.ruleFile}";
-        RestrictAddressFamilies = "AF_UNIX AF_NETLINK";
-        RestrictNamespaces = true;
-        RestrictRealtime = true;
-        SystemCallArchitectures = "native";
-        SystemCallFilter = "@system-service";
-        UMask = "0077";
-      };
+          AmbientCapabilities = "";
+          CapabilityBoundingSet = "CAP_CHOWN CAP_FOWNER";
+          DeviceAllow = "/dev/null rw";
+          DevicePolicy = "strict";
+          IPAddressDeny = "any";
+          LockPersonality = true;
+          MemoryDenyWriteExecute = true;
+          NoNewPrivileges = true;
+          PrivateDevices = true;
+          PrivateTmp = true;
+          ProtectControlGroups = true;
+          ProtectHome = true;
+          ProtectKernelModules = true;
+          ProtectSystem = true;
+          ReadOnlyPaths = "-/";
+          ReadWritePaths = "-/dev/shm -${dirOf cfg.auditFilePath} -/tmp -${dirOf cfg.ruleFile}";
+          RestrictAddressFamilies = "AF_UNIX AF_NETLINK";
+          RestrictNamespaces = true;
+          RestrictRealtime = true;
+          SystemCallArchitectures = "native";
+          SystemCallFilter = "@system-service";
+          UMask = "0077";
+        }
+        (mkIf (dirOf ruleFile == "/var/lib/usbguard") {
+          StateDirectory = "usbguard";
+        })
+        (mkIf (cfg.IPCAccessControlFiles == "/var/lib/usbguard/IPCAccessControl.d/") {
+          StateDirectory = "usbguard/IPCAccessControl.d";
+        })
+        (mkIf (dirOf cfg.auditFilePath == "/var/log/usbguard") {
+          LogsDirectory = "usbguard";
+        })
+      ];
     };
   };
 }
