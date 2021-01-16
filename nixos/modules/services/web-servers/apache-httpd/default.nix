@@ -35,14 +35,7 @@ let
 
   dependentCertNames = unique (map (hostOpts: hostOpts.certName) acmeEnabledVhosts);
 
-  mkListenInfo = hostOpts:
-    if hostOpts.listen != [] then hostOpts.listen
-    else (
-      optional (hostOpts.onlySSL || hostOpts.addSSL || hostOpts.forceSSL) { ip = "*"; port = 443; ssl = true; } ++
-      optional (!hostOpts.onlySSL) { ip = "*"; port = 80; ssl = false; }
-    );
-
-  listenInfo = unique (concatMap mkListenInfo vhosts);
+  listenInfo = unique (concatMap (vhost: vhost.listen) vhosts);
 
   enableHttp2 = any (vhost: vhost.http2) vhosts;
   enableSSL = any (listen: listen.ssl) listenInfo;
@@ -136,8 +129,8 @@ let
   mkVHostConf = hostOpts:
     let
       adminAddr = if hostOpts.adminAddr != null then hostOpts.adminAddr else cfg.adminAddr;
-      listen = filter (listen: !listen.ssl) (mkListenInfo hostOpts);
-      listenSSL = filter (listen: listen.ssl) (mkListenInfo hostOpts);
+      listen = filter (listen: !listen.ssl) hostOpts.listen;
+      listenSSL = filter (listen: listen.ssl) hostOpts.listen;
 
       useACME = hostOpts.enableACME || hostOpts.useACMEHost != null;
       sslCertDir =

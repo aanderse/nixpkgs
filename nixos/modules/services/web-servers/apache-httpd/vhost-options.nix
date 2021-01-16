@@ -1,6 +1,6 @@
 { config, lib, name, ... }:
 let
-  inherit (lib) literalExample mkOption nameValuePair types;
+  inherit (lib) literalExample mkOption nameValuePair optional types;
 in
 {
   options = {
@@ -39,7 +39,16 @@ in
           };
         };
       }));
-      default = [];
+      default =
+        optional (!config.onlySSL) { ip = "*"; port = 80; ssl = false; } ++
+        optional (config.onlySSL || config.addSSL || config.forceSSL) { ip = "*"; port = 443; ssl = true; }
+      ;
+      defaultText = ''
+        [
+          { ip = "*"; port = 80; ssl = false; } # depending on `onlySSL`
+          { ip = "*"; port = 443; ssl = true; } # depending on `addSSL`, `forceSSL`, and `onlySSL`
+        ]
+      '';
       example = [
         { ip = "195.154.1.1"; port = 443; ssl = true;}
         { ip = "192.154.1.1"; port = 80; }
