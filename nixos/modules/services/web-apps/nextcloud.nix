@@ -4,7 +4,7 @@ with lib;
 
 let
   cfg = config.services.nextcloud;
-  fpm = config.services.phpfpm.pools.nextcloud;
+  fpm = config.services.php-fpm.pools.nextcloud;
 
   phpPackage = pkgs.php74.buildEnv {
     extensions = { enabled, all }:
@@ -55,11 +55,12 @@ in {
       However it's possible to use an alternative reverse-proxy by
 
         * disabling nginx
-        * setting `listen.owner` & `listen.group` in the phpfpm-pool to a different value
+        * adding the `nextcloud` group to your reverse-proxy users `extraGroups`
 
       Further details about this can be found in the `Nextcloud`-section of the NixOS-manual
       (which can be openend e.g. by running `nixos-help`).
     '')
+    (mkRemovedOptionModule [ "services" "nextcloud" "poolConfig" ] "Use `services.nextcloud.poolSettings` instead.")
   ];
 
   options.services.nextcloud = {
@@ -157,20 +158,12 @@ in {
       type = with types; attrsOf (oneOf [ str int bool ]);
       default = {
         "pm" = "dynamic";
-        "pm.max_children" = "32";
-        "pm.start_servers" = "2";
-        "pm.min_spare_servers" = "2";
-        "pm.max_spare_servers" = "4";
-        "pm.max_requests" = "500";
+        "pm.max_children" = 32;
+        "pm.start_servers" = 2;
+        "pm.min_spare_servers" = 2;
+        "pm.max_spare_servers" = 4;
+        "pm.max_requests" = 500;
       };
-      description = ''
-        Options for nextcloud's PHP pool. See the documentation on <literal>php-fpm.conf</literal> for details on configuration directives.
-      '';
-    };
-
-    poolConfig = mkOption {
-      type = types.nullOr types.lines;
-      default = null;
       description = ''
         Options for nextcloud's PHP pool. See the documentation on <literal>php-fpm.conf</literal> for details on configuration directives.
       '';
@@ -361,13 +354,10 @@ in {
             The package can be upgraded by explicitly declaring the service-option
             `services.nextcloud.package`.
           '';
-      in (optional (cfg.poolConfig != null) ''
-          Using config.services.nextcloud.poolConfig is deprecated and will become unsupported in a future release.
-          Please migrate your configuration to config.services.nextcloud.poolSettings.
-        '')
-        ++ (optional (versionOlder cfg.package.version "18") (upgradeWarning 17 "20.03"))
-        ++ (optional (versionOlder cfg.package.version "19") (upgradeWarning 18 "20.09"))
-        ++ (optional (versionOlder cfg.package.version "20") (upgradeWarning 19 "21.03"));
+      in
+        (optional (versionOlder cfg.package.version "18") (upgradeWarning 17 "20.03")) ++
+        (optional (versionOlder cfg.package.version "19") (upgradeWarning 18 "20.09")) ++
+        (optional (versionOlder cfg.package.version "20") (upgradeWarning 19 "21.03"));
 
       services.nextcloud.package = with pkgs;
         mkDefault (
@@ -394,8 +384,8 @@ in {
       systemd.services = {
         # When upgrading the Nextcloud package, Nextcloud can report errors such as
         # "The files of the app [all apps in /var/lib/nextcloud/apps] were not replaced correctly"
-        # Restarting phpfpm on Nextcloud package update fixes these issues (but this is a workaround).
-        phpfpm-nextcloud.restartTriggers = [ cfg.package ];
+        # Restarting php-fpm on Nextcloud package update fixes these issues (but this is a workaround).
+        php-fpm-nextcloud.restartTriggers = [ cfg.package ];
 
         nextcloud-setup = let
           c = cfg.config;
@@ -478,7 +468,7 @@ in {
 
         in {
           wantedBy = [ "multi-user.target" ];
-          before = [ "phpfpm-nextcloud.service" ];
+          before = [ "php-fpm-nextcloud.service" ];
           path = [ occ ];
           script = ''
             chmod og+x ${cfg.home}
@@ -523,22 +513,13 @@ in {
         };
       };
 
-      services.phpfpm = {
-        pools.nextcloud = {
-          user = "nextcloud";
-          group = "nextcloud";
-          phpPackage = phpPackage;
-          phpEnv = {
-            NEXTCLOUD_CONFIG_DIR = "${cfg.home}/config";
-            PATH = "/run/wrappers/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:/usr/bin:/bin";
-          };
-          settings = mapAttrs (name: mkDefault) {
-            "listen.owner" = config.services.nginx.user;
-            "listen.group" = config.services.nginx.group;
-          } // cfg.poolSettings;
-          extraConfig = cfg.poolConfig;
-        };
-      };
+      services.php-fpm.pools.nextcloud = {
+        "package" = phpPackage;
+        "user" = "nextcloud";
+        "group" = "nextcloud";
+        "env[NEXTCLOUD_CONFIG_DIR]" = "${cfg.home}/config";
+        "env[PATH]" = "/run/wrappers/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:/usr/bin:/bin";
+      } // cfg.poolSettings;
 
       users.users.nextcloud = {
         home = "${cfg.home}";
@@ -602,7 +583,7 @@ in {
               fastcgi_param HTTPS ${if cfg.https then "on" else "off"};
               fastcgi_param modHeadersAvailable true;
               fastcgi_param front_controller_active true;
-              fastcgi_pass unix:${fpm.socket};
+              fastcgi_pass unix:${fpm.listen};
               fastcgi_intercept_errors on;
               fastcgi_request_buffering off;
               fastcgi_read_timeout 120s;
