@@ -1,4 +1,4 @@
-{ stdenv, lib, fetchFromGitHub, autoconf, automake, libtool, makeWrapper
+{ stdenv, lib, fetchFromGitHub, fetchurl, autoconf, automake, libtool, makeWrapper
 , pkg-config, cmake, gnumake, yasm, python3Packages
 , libgcrypt, libgpgerror, libunistring
 , boost, avahi, lame
@@ -14,7 +14,7 @@
 , sqlite, libmysqlclient, nasm, gnutls, libva, libdrm
 , curl, bzip2, zip, unzip, glxinfo
 , libcec, libcec_platform, dcadec, libuuid
-, libcrossguid, libmicrohttpd
+, libmicrohttpd
 , bluez, doxygen, giflib, glib, harfbuzz, lcms2, libidn, libpthreadstubs, libtasn1
 , libplist, p11-kit, zlib, flatbuffers, fmt, fstrcmp, rapidjson
 , lirc
@@ -97,6 +97,11 @@ let
     sha256 = "1xxn01mhkdnp10cqdr357wx77vyzfb5glqpqyg8m0skyi75aii59";
   };
 
+  libcrossguid = fetchurl {
+    url = "http://mirrors.kodi.tv/build-deps/sources/crossguid-8f399e8bd4.tar.gz";
+    sha256 = "044x4ahxzxakjxvjh65vyggpsy1lnm6dyh5rxq553pphbndd0xrx";
+  };
+
   kodi_platforms = lib.optional gbmSupport "gbm"
     ++ lib.optional waylandSupport "wayland"
     ++ lib.optional x11Support "x11";
@@ -123,7 +128,7 @@ in stdenv.mkDerivation {
       curl bzip2 zip unzip glxinfo
       libcec libcec_platform dcadec libuuid
       libgcrypt libgpgerror libunistring
-      libcrossguid libplist
+      libplist
       bluez giflib glib harfbuzz lcms2 libpthreadstubs
       ffmpeg flatbuffers fmt fstrcmp rapidjson
       lirc
@@ -176,9 +181,9 @@ in stdenv.mkDerivation {
       "-Dlibdvdcss_URL=${libdvdcss}"
       "-Dlibdvdnav_URL=${libdvdnav}"
       "-Dlibdvdread_URL=${libdvdread}"
+      "-DCROSSGUID_URL=${libcrossguid}"
       "-DGIT_VERSION=${kodiReleaseDate}"
       "-DENABLE_EVENTCLIENTS=ON"
-      "-DENABLE_INTERNAL_CROSSGUID=OFF"
       "-DENABLE_OPTICAL=ON"
       "-DLIRC_DEVICE=/run/lirc/lircd"
       "-DSWIG_EXECUTABLE=${buildPackages.swig}/bin/swig"
