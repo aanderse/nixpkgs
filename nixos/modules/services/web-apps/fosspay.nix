@@ -1,93 +1,127 @@
-{ lib, pkgs, config, ... }:
+{ config, pkgs, lib, ... }:
 
 let
-  cfgs = config.services;
-  cfg  = cfgs.fosspay;
-in
-  {
-    options.services.fosspay = {
-      enable = lib.mkEnableOption "Donation collection for FOSS groups and individuals.";
+  cfg = config.services.fosspay;
 
-      configFile = lib.mkOption {
-        type = with lib.types; nullOr path;
+  package = pkgs.fosspay.override { conf = "${stateDir}/config.ini"; };
+  format = pkgs.formats.ini {};
+  stateDir = "/var/lib/fosspay";
+  configFile = format.generate "config.ini" cfg.settings;
+in
+{
+  options.services.fosspay = {
+    enable = lib.mkEnableOption "Donation collection for FOSS groups and individuals.";
+
+    secretKeyFile = lib.mkOption {
+      type = lib.types.path;
+      example = "/run/keys/fosspay-secret-key";
+      description = ''
+        A file containing a key for use with fosspay.
+      '';
+    };
+
+    database = {
+      host = mkOption {
+        type = types.str;
+        default = "localhost";
+        description = "Database host address.";
+      };
+
+      port = mkOption {
+        type = types.int;
+        default = 5432;
+        description = "Database host port.";
+      };
+
+      name = mkOption {
+        type = types.str;
+        default = "fosspay";
+        description = "Database name.";
+      };
+
+      user = mkOption {
+        type = types.str;
+        default = "fosspay";
+        description = "Database user.";
+      };
+
+      passwordFile = mkOption {
+        type = types.nullOr types.path;
         default = null;
-        example = "./config.ini";
+        example = "/run/keys/fosspay-dbpassword";
         description = ''
-          The path to a configuration file. See <link xlink:href="
-          https://git.sr.ht/~sircmpwn/fosspay/blob/master/config.ini.example"/>
+          A file containing the password corresponding to
+          <option>database.user</option>.
         '';
       };
 
-      config = lib.mkOption {
-        type = with lib.types; nullOr str;
-        default = null;
-        example = ''
-          [dev]
-          protocol=http
-          domain=localhost:5000
-        # Change this value to something random and secret
-          secret-key=hello world
-
-          smtp-host=mail.example.org
-          smtp-port=587
-          smtp-user=you
-          smtp-password=password
-          smtp-from=donate@example.org
-
-          your-name=Joe Bloe
-          your-email=joe@example.org
-
-          connection-string=postgresql://postgres@localhost/fosspay
-
-          stripe-secret=
-          stripe-publish=
-
-          currency=usd
-          default-amounts=3 5 10 20
-          default-amount=5
-          default-type=monthly
-          public-income=yes
-          goal=500
-        '';
-        description = ''
-          Content of the config file. See <link xlink:href="
-          https://git.sr.ht/~sircmpwn/fosspay/blob/master/config.ini.example"/>
-        '';
+      createLocally = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Create the database and database user locally.";
       };
     };
 
-    config = lib.mkIf cfg.enable {
-      systemd.services.fosspay = let
-        customConfig = if (cfg.configFile != null)
-        then cfg.configFile
-        else cfg.config;
-        fosspay = if (customConfig != null)
-        then pkgs.fosspay.override { conf=customConfig; }
-        else pkgs.fosspay;
-      in {
-      # after = [ "postgresql.service" ];
-      # bindsTo = [ "postgresql.service" ];
+    settings = lib.mkOption {
+      type = format.type;
+      default = {};
+      example = literalExample ''
+        dev = {
+          protocol = "http";
+          domain = "localhost:5000";
+
+          your-name = "Joe Bloe";
+          your-email = "joe@example.org";
+
+          currency = "usd";
+          default-amounts = "3 5 10 20";
+          default-amount = 5;
+          default-type = "monthly";
+          public-income = true;
+          goal = 500;
+        };
+      '';
+      description = ''
+        fosspay configuration. Refer to
+        <link xlink:href="https://git.sr.ht/~sircmpwn/fosspay/blob/master/config.ini.example"/>
+        for details on supported values.
+      '';
+    };
+  };
+
+  config = lib.mkIf cfg.enable {
+    systemd.services.fosspay = {
+      description = "fosspay website";
+      wantedBy = [ "multi-user.target" ];
+      # after = lib.optionals cfg.database.createLocally [ "postgresql.service" ];
+      # bindsTo = lib.optionals cfg.database.createLocally [ "postgresql.service" ];
+
+      preStart = ''
+        cp -f ${configFile} ${stateDir}/config.ini
+
+        # insert our secret files into config.ini that we'll use
+        ${pkgs.crudini}/bin/crudini --set ${stateDir}/config.ini dev secret-key "$(head -n1 ${cfg.secretKeyFile})"
+        # ${pkgs.crudini}/bin/crudini --set ${stateDir}/config.ini dev smtp-password "$(head -n1 ${cfg.smtp.passwordFile})"
+        # if cfg.database.createLocally != true ... -> ${pkgs.crudini}/bin/crudini --set ${stateDir}/config.ini dev connection-string "postgresql://${cfg.database.user}@${cfg.database.host}:${toString cfg.database.port}/${cfg.database.name}" and "$(head -n1 ${cfg.database.passwordFile})"
+        # etc...
+      '';
       serviceConfig = {
-        Type = "simple";
         User = "fosspay";
         Group = "fosspay";
-        WorkingDirectory = "${fosspay}/share";
-        ExecStart = "${fosspay}/bin/fosspay";
+        StateDirectory = "fosspay";
+        StateDirectoryMode = "0700";
+        WorkingDirectory = "${package}/share";
+        ExecStart = "${package}/bin/fosspay";
       };
     };
 
-    services.postgresql = {
+    services.postgresql = lib.optionalAttrs cfg.database.createLocally {
       enable = true;
-      authentication = ''
-        local all all trust
-        host all all 127.0.0.1/32 trust
-        host all all ::1/128 trust
-      '';
-      ensureDatabases = [ "fosspay" ];
+      ensureDatabases = [ cfg.database.name ];
       ensureUsers = [
         {
-          name = "fosspay";
-          ensurePermissions = { "DATABASE fosspay" = "ALL PRIVILEGES"; };
+          name = cfg.database.user;
+          ensurePermissions = { "DATABASE ${cfg.database.name}" = "ALL PRIVILEGES"; };
         }
       ];
     };
