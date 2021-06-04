@@ -12,7 +12,7 @@ import ./versions.nix ({ version, sha256 }:
 
     modRoot = "src/go";
 
-    vendorSha256 = "07caz0jfy0r1vb1h9mhb169wyn949z9xj0pmvyamr2d8y3k3hbyd";
+    vendorSha256 = "1a5m19jxcwl4xwf51yc4z12x0alf924n12hysx43slpi85m6k6i6";
 
     nativeBuildInputs = [ autoreconfHook pkg-config ];
     buildInputs = [ libiconv openssl pcre zlib ];
