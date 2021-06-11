@@ -40,6 +40,13 @@
           <link xlink:href="options.html#opt-services.sourcehut.enable">services.sourcehut</link>.
         </para>
       </listitem>
+      <listitem>
+        <para>
+          <link xlink:href="https://vikunja.io">vikunja</link>, an to-do
+          list app. Available as
+          <link xlink:href="options.html#opt-services.vikunja.enable">services.vikunja</link>.
+        </para>
+      </listitem>
     </itemizedlist>
   </section>
   <section xml:id="backward-incompatibilities">
