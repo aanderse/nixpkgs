@@ -10,8 +10,8 @@ let
         service.frontendurl = "${cfg.frontendScheme}://${cfg.frontendHostname}";
         }
    ));
-  useMysql = cfg.config.database.type == "mysql";
-  usePostgresql = cfg.config.database.type == "postgres";
+  useMysql = cfg.database.type == "mysql";
+  usePostgresql = cfg.database.type == "postgres";
 in {
   options.services.vikunja = with lib; {
     enable = mkEnableOption "Enable Vikunja service";
@@ -55,6 +55,48 @@ in {
       type = types.str;
       description = "The Hostname under which the frontend is running.";
     };
+    database = {
+      type = mkOption {
+        type = types.enum [ "sqlite" "mysql" "postgres" ];
+        example = "postgres";
+        default = "sqlite";
+        description = "Database engine to use.";
+      };
+      host = mkOption {
+        type = types.str;
+        default = "localhost";
+        description = "Database host address. Can also be a socket.";
+      };
+      user = mkOption {
+        type = types.str;
+        default = "vikunja";
+        description = "Database user.";
+      };
+      password = mkOption {
+        type = types.str;
+        default = "";
+        description = ''
+          Database password <option>config.database.user</option>.
+          Warning: this is stored in cleartext in the Nix store!
+          Use an environment file with <option>environmentFiles</option> instead.
+        '';
+      };
+      database = mkOption {
+        type = types.str;
+        default = "vikunja";
+        description = "Database name.";
+      };
+      path = mkOption {
+        type = types.str;
+        default = "${cfg.stateDir}/vikunja.db";
+        description = "Path to the sqlite3 database file.";
+      };
+      createDatabase = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Whether to create a local database automatically.";
+      };
+    };
     extraConfig = mkOption {
       type = types.attrs;
       default = {};
@@ -67,48 +109,6 @@ in {
           example = "Europe/Berlin";
           default = "UTC";
           description = "Time zone for all timestamps. Should be a tz database name.";
-        };
-      };
-      database = {
-        type = mkOption {
-          type = types.enum [ "sqlite" "mysql" "postgres" ];
-          example = "postgres";
-          default = "sqlite";
-          description = "Database engine to use.";
-        };
-        host = mkOption {
-          type = types.str;
-          default = "localhost";
-          description = "Database host address. Can also be a socket.";
-        };
-        user = mkOption {
-          type = types.str;
-          default = "vikunja";
-          description = "Database user.";
-        };
-        password = mkOption {
-          type = types.str;
-          default = "";
-          description = ''
-            Database password <option>config.database.user</option>.
-            Warning: this is stored in cleartext in the Nix store!
-            Use an environment file with <option>environmentFiles</option> instead.
-          '';
-        };
-        database = mkOption {
-          type = types.str;
-          default = "vikunja";
-          description = "Database name.";
-        };
-        path = mkOption {
-          type = types.str;
-          default = "${cfg.stateDir}/vikunja.db";
-          description = "Path to the sqlite3 database file.";
-        };
-        createDatabase = mkOption {
-          type = types.bool;
-          default = true;
-          description = "Whether to create a local database automatically.";
         };
       };
       corsOrigins = mkOption {
@@ -209,25 +209,25 @@ in {
 
     environment.etc."vikunja/config.json".source = configFile;
 
-    services.postgresql = optionalAttrs (usePostgresql && cfg.config.database.createDatabase) {
+    services.postgresql = optionalAttrs (usePostgresql && cfg.database.createDatabase) {
       enable = mkDefault true;
 
-      ensureDatabases = [ cfg.config.database.database ];
+      ensureDatabases = [ cfg.database.database ];
       ensureUsers = [
-        { name = cfg.config.database.user;
-          ensurePermissions = { "DATABASE ${cfg.config.database.database}" = "ALL PRIVILEGES"; };
+        { name = cfg.database.user;
+          ensurePermissions = { "DATABASE ${cfg.database.database}" = "ALL PRIVILEGES"; };
         }
       ];
     };
 
-    services.mysql = optionalAttrs (useMysql && cfg.config.database.createDatabase) {
+    services.mysql = optionalAttrs (useMysql && cfg.database.createDatabase) {
       enable = mkDefault true;
       package = mkDefault pkgs.mariadb;
 
-      ensureDatabases = [ cfg.config.database.database ];
+      ensureDatabases = [ cfg.database.database ];
       ensureUsers = [
-        { name = cfg.config.database.user;
-          ensurePermissions = { "${cfg.config.database.database}.*" = "ALL PRIVILEGES"; };
+        { name = cfg.database.user;
+          ensurePermissions = { "${cfg.database.database}.*" = "ALL PRIVILEGES"; };
         }
       ];
     };
