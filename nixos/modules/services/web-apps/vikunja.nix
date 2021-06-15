@@ -4,12 +4,8 @@ with lib;
 
 let
   cfg = config.services.vikunja;
-  configFile = pkgs.writeText "config.json" (
-    builtins.toJSON (
-      cfg.config // cfg.extraConfig // {
-        service.frontendurl = "${cfg.frontendScheme}://${cfg.frontendHostname}";
-        }
-   ));
+  format = pkgs.formats.yaml {};
+  configFile = format.generate "config.yaml" cfg.settings;
   useMysql = cfg.database.type == "mysql";
   usePostgresql = cfg.database.type == "postgres";
 in {
@@ -97,69 +93,26 @@ in {
         description = "Whether to create a local database automatically.";
       };
     };
-    extraConfig = mkOption {
-      type = types.attrs;
+    settings = mkOption {
+      type = format.type;
       default = {};
-      description = "Extra config that fill directly be passed into the Vikunja config.";
-    };
-    config = {
-      service = {
-        timezone = mkOption {
-          type = types.str;
-          example = "Europe/Berlin";
-          default = "UTC";
-          description = "Time zone for all timestamps. Should be a tz database name.";
-        };
-      };
-      corsOrigins = mkOption {
-        type = types.listOf types.str;
-        default = [];
-        description = "A list of origins allowed in the CORS Header to access the API.";
-      };
-      mailer = {
-        enabled = mkOption {
-          type = types.bool;
-          default = false;
-          description = "Whether mailer should be enabled.";
-        };
-        host = mkOption {
-          type = types.str;
-          default = "";
-          description = "SMTP host address.";
-        };
-        port = mkOption {
-          type = types.int;
-          default = 587;
-          description = "SMTP host port.";
-        };
-        username = mkOption {
-          type = types.str;
-          default = "";
-          description = "SMTP username.";
-        };
-        password = mkOption {
-          type = types.str;
-          default = "";
-          description = ''
-            SMTP User password <option>config.database.user</option>.
-            Warning: this is stored in cleartext in the Nix store!
-            Use an environment file with <option>environmentFiles</option> instead.
-          '';
-        };
-        fromemail = mkOption {
-          type = types.str;
-          default = "";
-          description = "The default from address when sending emails.";
-        };
-        forcessl = mkOption {
-          type = types.bool;
-          default = false;
-          description = "By default, vikunja will try to connect with starttls, use this option to force it to use ssl.";
-        };
-      };
+      description = ''
+        Vikunja configuration. Refer to
+        <link xlink:href="https://vikunja.io/docs/config-options/"/>
+        for details on supported values.
+      '';
     };
   };
   config = lib.mkIf cfg.enable {
+
+    services.vikunja.settings = {
+      database = {
+        inherit (cfg.database) type host user password database path;
+      };
+      service = {
+        frontendurl = "${cfg.frontendScheme}://${cfg.frontendHostname}";
+      };
+    };
 
     systemd.services.vikunja-api = {
       description = "vikunja-api";
