@@ -6,7 +6,7 @@
 , openssl, gperf, tinyxml2, taglib, libssh, swig, jre_headless
 , gtest, ncurses, spdlog
 , libxml2, systemd
-, alsa-lib, libGLU, libGL, fontconfig, freetype, ftgl
+, alsa-lib, libGLU, libGL, ffmpeg_4, fontconfig, freetype, ftgl
 , libjpeg, libpng, libtiff
 , libmpeg2, libsamplerate, libmad
 , libogg, libvorbis, flac, libxslt
@@ -39,44 +39,9 @@ assert gbmSupport || waylandSupport || x11Support;
 
 let
   kodiReleaseDate = "20230629";
-  kodiVersion = "20.2";
   rel = "Nexus";
 
-  kodi_src = fetchFromGitHub {
-    owner = "xbmc";
-    repo = "xbmc";
-    rev = "${kodiVersion}-${rel}";
-    hash = "sha256-nNdBjqY9gkpv3g/hcyjWPENHFwOlxrKs2cT4IvRPuXs=";
-  };
-
-  # see https://github.com/xbmc/xbmc/blob/${kodiVersion}-${rel}/tools/depends/target/ to get suggested versions for all dependencies
-
-  # kodi 20.0 moved to ffmpeg 5, *but* there is a bug making the compilation fail which will
-  # only been fixed in kodi 21, so stick to ffmpeg 4 for now
-  ffmpeg = stdenv.mkDerivation rec {
-    pname = "kodi-ffmpeg";
-    version = "4.4.1";
-    src = fetchFromGitHub {
-      owner   = "xbmc";
-      repo    = "FFmpeg";
-      rev     = "${version}-${rel}-Alpha1";
-      sha256  = "sha256-EQHmmWnDw+/udKYq7Nrf00nL7I5XWUtmzdauDryfTII=";
-    };
-    preConfigure = ''
-      cp ${kodi_src}/tools/depends/target/ffmpeg/{CMakeLists.txt,*.cmake} .
-      sed -i 's/ --cpu=''${CPU}//' CMakeLists.txt
-      sed -i 's/--strip=''${CMAKE_STRIP}/--strip=''${CMAKE_STRIP} --ranlib=''${CMAKE_RANLIB}/' CMakeLists.txt
-    '';
-    cmakeFlags = lib.optionals (stdenv.hostPlatform != stdenv.buildPlatform) [
-      "-DCROSSCOMPILING=ON"
-      "-DCPU=${stdenv.hostPlatform.parsed.cpu.name}"
-      "-DOS=${stdenv.hostPlatform.parsed.kernel.name}"
-      "-DPKG_CONFIG_EXECUTABLE=pkg-config"
-    ];
-    buildInputs = [ libidn2 libtasn1 p11-kit zlib libva ]
-      ++ lib.optional vdpauSupport libvdpau;
-    nativeBuildInputs = [ cmake nasm pkg-config gnutls ];
-  };
+  # see https://github.com/xbmc/xbmc/blob/${kodi.version}-${rel}/tools/depends/target/ to get suggested versions for all dependencies
 
   # We can build these externally but FindLibDvd.cmake forces us to build it
   # them, so we currently just use them for the src.
@@ -105,11 +70,16 @@ let
     ++ lib.optional waylandSupport "wayland"
     ++ lib.optional x11Support "x11";
 
-in stdenv.mkDerivation {
+in stdenv.mkDerivation rec {
     pname = "kodi";
-    version = kodiVersion;
+    version = "20.2";
 
-    src = kodi_src;
+    src = fetchFromGitHub {
+      owner = "xbmc";
+      repo = "xbmc";
+      rev = "${version}-${rel}";
+      hash = "sha256-nNdBjqY9gkpv3g/hcyjWPENHFwOlxrKs2cT4IvRPuXs=";
+    };
 
     buildInputs = [
       gnutls libidn2 libtasn1 nasm p11-kit
@@ -129,7 +99,7 @@ in stdenv.mkDerivation {
       libxcrypt libgcrypt libgpg-error libunistring
       libcrossguid libplist
       bluez giflib glib harfbuzz lcms2 libpthreadstubs
-      ffmpeg flatbuffers fstrcmp rapidjson
+      ffmpeg_4 flatbuffers fstrcmp rapidjson
       lirc
       mesa # for libEGL
     ]
@@ -246,7 +216,7 @@ in stdenv.mkDerivation {
 
     passthru = {
       pythonPackages = python3Packages;
-      ffmpeg = ffmpeg;
+      ffmpeg = ffmpeg_4;
     };
 
     meta = with lib; {
